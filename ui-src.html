@@ -149,7 +149,7 @@ const PX = 3;
 const SP_W = 16, SP_H = 14;
 const PET_W = SP_W * PX;
 const PET_H = SP_H * PX;
-const CAT_SVG_W = 80, CAT_SVG_H = 80;
+const CAT_SVG_W = 64, CAT_SVG_H = 64;
 
 // ── SVG sitting frames (imported from assets/ via build.js) ──
 const svgFrames = {};   // { cat: [canvas,...], greycat: [canvas,...] }
@@ -162,11 +162,20 @@ function loadSvgFrames(type, dataURIs) {
   dataURIs.forEach(uri => {
     const img = new Image();
     img.onload = () => {
+      // 1) Render SVG at native resolution (no gaps between rects)
+      const native = document.createElement('canvas');
+      native.width = img.naturalWidth;
+      native.height = img.naturalHeight;
+      const nctx = native.getContext('2d');
+      nctx.drawImage(img, 0, 0);
+      // 2) Downscale to display size with smoothing (clean result)
       const oc = document.createElement('canvas');
-      oc.width = img.naturalWidth;
-      oc.height = img.naturalHeight;
+      oc.width = CAT_SVG_W;
+      oc.height = CAT_SVG_H;
       const octx = oc.getContext('2d');
-      octx.drawImage(img, 0, 0);
+      octx.imageSmoothingEnabled = true;
+      octx.imageSmoothingQuality = 'high';
+      octx.drawImage(native, 0, 0, CAT_SVG_W, CAT_SVG_H);
       svgFrames[type].push(oc);
       if (++loaded === dataURIs.length) svgReady[type] = true;
     };
@@ -258,13 +267,12 @@ function draw() {
       const frames = svgFrames[p.type];
       const oc = frames[p.frameIndex % frames.length];
       ctx.save();
-      ctx.imageSmoothingEnabled = false;
       if (!p.facingRight) {
         ctx.translate(Math.round(p.x) + CAT_SVG_W, groundY - CAT_SVG_H);
         ctx.scale(-1, 1);
-        ctx.drawImage(oc, 0, 0, CAT_SVG_W, CAT_SVG_H);
+        ctx.drawImage(oc, 0, 0);
       } else {
-        ctx.drawImage(oc, Math.round(p.x), groundY - CAT_SVG_H, CAT_SVG_W, CAT_SVG_H);
+        ctx.drawImage(oc, Math.round(p.x), groundY - CAT_SVG_H);
       }
       ctx.restore();
     }

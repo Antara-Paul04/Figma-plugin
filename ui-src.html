@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--figma-color-bg, #2c2c2c);
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  #toolbar {
+    display: flex;
+    gap: 6px;
+    padding: 6px 8px 2px;
+    flex-shrink: 0;
+  }
+  #toolbar button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    color: rgba(255,255,255,0.8);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 11px;
+    padding: 4px 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  #toolbar button:hover {
+    background: rgba(255,255,255,0.12);
+  }
+  #toolbar button:active {
+    background: rgba(255,255,255,0.18);
+  }
+  #toolbar button canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  #hint {
+    text-align: center;
+    color: rgba(255,255,255,0.3);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 10px;
+    padding: 2px 0 4px;
+    flex-shrink: 0;
+  }
+  #c {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+  }
+  #resize-handle {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    z-index: 10;
+  }
+  #resize-handle::after {
+    content: '';
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid rgba(255,255,255,0.3);
+    border-bottom: 2px solid rgba(255,255,255,0.3);
+  }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button data-type="cat"><canvas width="16" height="14" id="ic-cat"></canvas>Cat</button>
+  <button data-type="greycat"><canvas width="16" height="14" id="ic-greycat"></canvas>Grey Cat</button>
+</div>
+<div id="hint">click a pet to remove it</div>
+<canvas id="c"></canvas>
+<div id="resize-handle"></div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+}
+resize();
+window.addEventListener('resize', () => { resize(); resetLayout(); });
+
+// ── Sprite registry (used only for toolbar icons) ───────────
+const PETS = {
+  cat: {
+    colors: [null,'#1a1a2e','#e08040','#f0c890','#ffffff','#ff8090','#3a3a5c','#40c040'],
+    idle: [
+      [
+        [0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0],
+        [0,0,0,1,2,2,1,1,1,1,2,2,1,0,0,0],
+        [0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,2,2,1,5,5,1,2,2,2,1,0,0],
+        [0,0,0,1,2,2,2,3,3,2,2,2,1,0,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,0,1,1,2,2,2,2,2,2,1,1,0,0,0],
+        [0,0,1,6,1,1,1,1,1,1,1,1,6,1,0,0],
+        [0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0],
+      ],
+    ],
+  },
+  greycat: {
+    colors: [null,'#1a1a2e','#808080','#b0b0b0','#ffffff','#ff8090','#4a4a5c','#40c040'],
+    idle: [
+      [
+        [0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0],
+        [0,0,0,1,2,2,1,1,1,1,2,2,1,0,0,0],
+        [0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,2,2,1,5,5,1,2,2,2,1,0,0],
+        [0,0,0,1,2,2,2,3,3,2,2,2,1,0,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,0,1,1,2,2,2,2,2,2,1,1,0,0,0],
+        [0,0,1,6,1,1,1,1,1,1,1,1,6,1,0,0],
+        [0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0],
+      ],
+    ],
+  },
+};
+
+// ── Constants ──────────────────────────────────────────────────
+const PX = 3;
+const SP_W = 16, SP_H = 14;
+const PET_W = SP_W * PX;
+const PET_H = SP_H * PX;
+const CAT_SVG_W = 80, CAT_SVG_H = 80;
+
+// ── SVG sitting frames (imported from assets/ via build.js) ──
+const svgFrames = {};   // { cat: [canvas,...], greycat: [canvas,...] }
+const svgReady = {};    // { cat: false, greycat: false }
+
+function loadSvgFrames(type, dataURIs) {
+  svgFrames[type] = [];
+  svgReady[type] = false;
+  let loaded = 0;
+  dataURIs.forEach(uri => {
+    const img = new Image();
+    img.onload = () => {
+      const oc = document.createElement('canvas');
+      oc.width = img.naturalWidth;
+      oc.height = img.naturalHeight;
+      const octx = oc.getContext('2d');
+      octx.drawImage(img, 0, 0);
+      svgFrames[type].push(oc);
+      if (++loaded === dataURIs.length) svgReady[type] = true;
+    };
+    img.src = uri;
+  });
+}
+
+// Replaced by build.js with base64 URIs from assets/
+loadSvgFrames('cat', __CAT_SVG_DATA__);
+loadSvgFrames('greycat', __GREYCAT_SVG_DATA__);
+
+// ── Pet instances ─────────────────────────────────────────────
+const pets = [];
+let groundY;
+let lastTime = 0;
+
+function newPet(type) {
+  return {
+    type,
+    x: Math.random() * Math.max(0, canvas.width - CAT_SVG_W),
+    facingRight: Math.random() > 0.5,
+    state: 'IDLE',
+    frameIndex: 0,
+    stateTimer: 0,
+    frameTimer: 0,
+    idleDuration: 2000 + Math.random() * 3000,
+    targetX: 0,
+  };
+}
+
+function resetLayout() {
+  groundY = canvas.height - 4;
+  for (const p of pets) {
+    p.x = Math.max(0, Math.min(canvas.width - CAT_SVG_W, p.x));
+  }
+}
+resetLayout();
+
+// ── Drawing ──────────────────────────────────────────────────
+function drawSprite(sprite, colors, x, y, flipped) {
+  ctx.save();
+  if (flipped) {
+    ctx.translate(x + PET_W, y);
+    ctx.scale(-1, 1);
+  } else {
+    ctx.translate(x, y);
+  }
+  for (let r = 0; r < sprite.length; r++) {
+    for (let c = 0; c < sprite[r].length; c++) {
+      const ci = sprite[r][c];
+      if (!ci) continue;
+      ctx.fillStyle = colors[ci];
+      ctx.fillRect(c * PX, r * PX, PX, PX);
+    }
+  }
+  ctx.restore();
+}
+
+// ── Update & Draw ────────────────────────────────────────────
+function updatePet(p, dt) {
+  p.stateTimer += dt;
+  p.frameTimer += dt;
+
+  if (p.frameTimer >= 400) {
+    p.frameTimer -= 400;
+    if (svgReady[p.type]) {
+      p.frameIndex = Math.floor(Math.random() * 4);
+    }
+  }
+}
+
+function update(dt) {
+  for (const p of pets) updatePet(p, dt);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Ground line
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, groundY);
+  ctx.lineTo(canvas.width, groundY);
+  ctx.stroke();
+
+  for (const p of pets) {
+    if (svgReady[p.type] && svgFrames[p.type].length > 0) {
+      const frames = svgFrames[p.type];
+      const oc = frames[p.frameIndex % frames.length];
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      if (!p.facingRight) {
+        ctx.translate(Math.round(p.x) + CAT_SVG_W, groundY - CAT_SVG_H);
+        ctx.scale(-1, 1);
+        ctx.drawImage(oc, 0, 0, CAT_SVG_W, CAT_SVG_H);
+      } else {
+        ctx.drawImage(oc, Math.round(p.x), groundY - CAT_SVG_H, CAT_SVG_W, CAT_SVG_H);
+      }
+      ctx.restore();
+    }
+  }
+}
+
+function loop(ts) {
+  if (!lastTime) lastTime = ts;
+  const dt = Math.min(ts - lastTime, 100);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ── Toolbar icons ─────────────────────────────────────────────
+function drawIcon(canvasId, type) {
+  const ic = document.getElementById(canvasId);
+  const ictx = ic.getContext('2d');
+  const data = PETS[type];
+  const sprite = data.idle[0];
+  for (let r = 0; r < sprite.length; r++) {
+    for (let c = 0; c < sprite[r].length; c++) {
+      const ci = sprite[r][c];
+      if (!ci) continue;
+      ictx.fillStyle = data.colors[ci];
+      ictx.fillRect(c, r, 1, 1);
+    }
+  }
+}
+drawIcon('ic-cat', 'cat');
+drawIcon('ic-greycat', 'greycat');
+
+// ── Interaction ───────────────────────────────────────────────
+document.getElementById('toolbar').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-type]');
+  if (!btn) return;
+  pets.push(newPet(btn.dataset.type));
+});
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  for (let i = pets.length - 1; i >= 0; i--) {
+    const p = pets[i];
+    const px = Math.round(p.x);
+    const py = groundY - CAT_SVG_H;
+    if (mx >= px && mx <= px + CAT_SVG_W && my >= py && my <= py + CAT_SVG_H) {
+      pets.splice(i, 1);
+      return;
+    }
+  }
+});
+
+// ── Resize handle ─────────────────────────────────────────────
+{
+  const handle = document.getElementById('resize-handle');
+  let dragging = false, startX, startY, startW, startH;
+  handle.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startW = window.innerWidth;
+    startH = window.innerHeight;
+    handle.setPointerCapture(e.pointerId);
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const w = Math.max(180, startW + (e.clientX - startX));
+    const h = Math.max(180, startH + (e.clientY - startY));
+    parent.postMessage({ pluginMessage: { type: 'resize', width: Math.round(w), height: Math.round(h) } }, '*');
+  });
+  window.addEventListener('pointerup', () => { dragging = false; });
+}
+
+// ── Start ─────────────────────────────────────────────────────
+pets.push(newPet('cat'));
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -84,7 +84,7 @@
   <button data-type="cat"><canvas width="16" height="14" id="ic-cat"></canvas>Cat</button>
   <button data-type="greycat"><canvas width="16" height="14" id="ic-greycat"></canvas>Grey Cat</button>
 </div>
-<div id="hint">click a pet to remove it</div>
+<div id="hint">click to flip · drag to move · double-click to remove</div>
 <canvas id="c"></canvas>
 <div id="resize-handle"></div>
 <script>
@@ -315,22 +315,56 @@ document.getElementById('toolbar').addEventListener('click', (e) => {
   pets.push(newPet(btn.dataset.type));
 });
 
-canvas.addEventListener('click', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  const mx = (e.clientX - rect.left) * scaleX;
-  const my = (e.clientY - rect.top) * scaleY;
+// Drag pets to reposition, double-click to remove
+let dragPet = null, dragOffsetX = 0, didDrag = false;
 
+function canvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (canvas.width / rect.width),
+    y: (e.clientY - rect.top) * (canvas.height / rect.height),
+  };
+}
+
+function hitTest(mx, my) {
   for (let i = pets.length - 1; i >= 0; i--) {
     const p = pets[i];
     const px = Math.round(p.x);
     const py = groundY - CAT_SVG_H;
-    if (mx >= px && mx <= px + CAT_SVG_W && my >= py && my <= py + CAT_SVG_H) {
-      pets.splice(i, 1);
-      return;
-    }
+    if (mx >= px && mx <= px + CAT_SVG_W && my >= py && my <= py + CAT_SVG_H) return i;
   }
+  return -1;
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  const { x, y } = canvasCoords(e);
+  const idx = hitTest(x, y);
+  if (idx >= 0) {
+    dragPet = pets[idx];
+    dragOffsetX = x - Math.round(dragPet.x);
+    didDrag = false;
+    canvas.setPointerCapture(e.pointerId);
+  }
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (!dragPet) return;
+  didDrag = true;
+  const { x } = canvasCoords(e);
+  dragPet.x = Math.max(0, Math.min(canvas.width - CAT_SVG_W, x - dragOffsetX));
+});
+
+canvas.addEventListener('pointerup', () => {
+  if (dragPet && !didDrag) {
+    dragPet.facingRight = !dragPet.facingRight;
+  }
+  dragPet = null;
+});
+
+canvas.addEventListener('dblclick', (e) => {
+  const { x, y } = canvasCoords(e);
+  const idx = hitTest(x, y);
+  if (idx >= 0) pets.splice(idx, 1);
 });
 
 // ── Resize handle ─────────────────────────────────────────────

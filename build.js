@@ -16,6 +16,7 @@ function svgsToArray(fileNames) {
 
 let html = fs.readFileSync(srcFile, 'utf-8');
 html = html.replace('__CAT_SVG_DATA__', svgsToArray(['CAT1.svg', 'CAT2.svg', 'CAT3.svg', 'CAT4.svg']));
+html = html.replace('__CATSIT_SVG_DATA__', svgsToArray(['CATSIT1.svg', 'CATSIT2.svg', 'CATSIT3.svg', 'CATSIT4.svg', 'CATSIT5.svg']));
 html = html.replace('__GREYCAT_SVG_DATA__', svgsToArray(['GREYCAT1.svg', 'GREYCAT2.svg', 'GREYCAT3.svg', 'GREYCAT4.svg']));
 
 fs.writeFileSync(outFile, html, 'utf-8');

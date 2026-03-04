@@ -82,6 +82,7 @@
 <body>
 <div id="toolbar">
   <button data-type="cat"><canvas width="16" height="14" id="ic-cat"></canvas>Cat</button>
+  <button data-action="sit"><canvas width="16" height="14" id="ic-cat_sit"></canvas>Cat Sit</button>
   <button data-type="greycat"><canvas width="16" height="14" id="ic-greycat"></canvas>Grey Cat</button>
 </div>
 <div id="hint">click to flip · drag to move · double-click to remove</div>
@@ -121,6 +122,27 @@ const PETS = {
       ],
     ],
   },
+  cat_sit: {
+    colors: [null,'#1a1a2e','#e08040','#f0c890','#ffffff','#ff8090','#3a3a5c','#40c040'],
+    idle: [
+      [
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0],
+        [0,0,0,1,2,2,1,1,1,1,2,2,1,0,0,0],
+        [0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,2,2,1,5,5,1,2,2,2,1,0,0],
+        [0,0,0,1,2,2,2,3,3,2,2,2,1,0,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,0,1,1,2,2,2,2,2,2,1,1,0,0,0],
+        [0,0,0,1,2,2,2,1,1,2,2,2,1,0,0,0],
+        [0,0,1,6,1,1,1,0,0,1,1,1,6,1,0,0],
+        [0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0],
+      ],
+    ],
+  },
   greycat: {
     colors: [null,'#1a1a2e','#808080','#b0b0b0','#ffffff','#ff8090','#4a4a5c','#40c040'],
     idle: [
@@ -149,11 +171,11 @@ const PX = 3;
 const SP_W = 16, SP_H = 14;
 const PET_W = SP_W * PX;
 const PET_H = SP_H * PX;
-const CAT_SVG_W = 64, CAT_SVG_H = 64;
+const CAT_SIZE = 80;
 
-// ── SVG sitting frames (imported from assets/ via build.js) ──
-const svgFrames = {};   // { cat: [canvas,...], greycat: [canvas,...] }
-const svgReady = {};    // { cat: false, greycat: false }
+// ── SVG frames (imported from assets/ via build.js) ──
+const svgFrames = {};   // { cat: [canvas,...], cat_sit: [canvas,...], ... }
+const svgReady = {};
 
 function loadSvgFrames(type, dataURIs) {
   svgFrames[type] = [];
@@ -162,20 +184,19 @@ function loadSvgFrames(type, dataURIs) {
   dataURIs.forEach(uri => {
     const img = new Image();
     img.onload = () => {
-      // 1) Render SVG at native resolution (no gaps between rects)
+      // 1) Render SVG at native resolution (no gaps)
       const native = document.createElement('canvas');
       native.width = img.naturalWidth;
       native.height = img.naturalHeight;
-      const nctx = native.getContext('2d');
-      nctx.drawImage(img, 0, 0);
-      // 2) Downscale to display size with smoothing (clean result)
+      native.getContext('2d').drawImage(img, 0, 0);
+      // 2) Downscale to display size with smoothing
       const oc = document.createElement('canvas');
-      oc.width = CAT_SVG_W;
-      oc.height = CAT_SVG_H;
+      oc.width = CAT_SIZE;
+      oc.height = CAT_SIZE;
       const octx = oc.getContext('2d');
       octx.imageSmoothingEnabled = true;
       octx.imageSmoothingQuality = 'high';
-      octx.drawImage(native, 0, 0, CAT_SVG_W, CAT_SVG_H);
+      octx.drawImage(native, 0, 0, CAT_SIZE, CAT_SIZE);
       svgFrames[type].push(oc);
       if (++loaded === dataURIs.length) svgReady[type] = true;
     };
@@ -185,6 +206,7 @@ function loadSvgFrames(type, dataURIs) {
 
 // Replaced by build.js with base64 URIs from assets/
 loadSvgFrames('cat', __CAT_SVG_DATA__);
+loadSvgFrames('cat_sit', __CATSIT_SVG_DATA__);
 loadSvgFrames('greycat', __GREYCAT_SVG_DATA__);
 
 // ── Pet instances ─────────────────────────────────────────────
@@ -195,21 +217,20 @@ let lastTime = 0;
 function newPet(type) {
   return {
     type,
-    x: Math.random() * Math.max(0, canvas.width - CAT_SVG_W),
+    x: Math.random() * Math.max(0, canvas.width - CAT_SIZE),
     facingRight: Math.random() > 0.5,
-    state: 'IDLE',
     frameIndex: 0,
-    stateTimer: 0,
     frameTimer: 0,
-    idleDuration: 2000 + Math.random() * 3000,
-    targetX: 0,
+    sitting: false,
+    sitFrame: 0,
+    sitDone: false,
   };
 }
 
 function resetLayout() {
   groundY = canvas.height - 4;
   for (const p of pets) {
-    p.x = Math.max(0, Math.min(canvas.width - CAT_SVG_W, p.x));
+    p.x = Math.max(0, Math.min(canvas.width - CAT_SIZE, p.x));
   }
 }
 resetLayout();
@@ -236,13 +257,40 @@ function drawSprite(sprite, colors, x, y, flipped) {
 
 // ── Update & Draw ────────────────────────────────────────────
 function updatePet(p, dt) {
-  p.stateTimer += dt;
-  p.frameTimer += dt;
+  // Phase 2 of sit: slow loop between CATSIT4 ↔ CATSIT5
+  if (p.sitting && p.sitDone) {
+    p.sitLoopTimer = (p.sitLoopTimer || 0) + dt;
+    if (p.sitLoopTimer >= 800) {
+      p.sitLoopTimer -= 800;
+      p.sitFrame = p.sitFrame === 3 ? 4 : 3;
+    }
+    return;
+  }
 
+  p.frameTimer += dt;
   if (p.frameTimer >= 400) {
     p.frameTimer -= 400;
+
+    // Sitting animation: play CATSIT1→2→3→4, then loop between 4 and 5
+    if (p.sitting) {
+      if (svgReady['cat_sit']) {
+        if (!p.sitDone) {
+          // Phase 1: sequential 0→1→2→3 (CATSIT1→4) at normal speed
+          if (p.sitFrame < 3) {
+            p.sitFrame++;
+          } else {
+            p.sitDone = true;
+            p.sitLoopTimer = 0;
+          }
+        }
+      }
+      return;
+    }
+
+    // Normal standing animation (random frame)
     if (svgReady[p.type]) {
-      p.frameIndex = Math.floor(Math.random() * 4);
+      const len = svgFrames[p.type].length;
+      p.frameIndex = Math.floor(Math.random() * len);
     }
   }
 }
@@ -263,16 +311,19 @@ function draw() {
   ctx.stroke();
 
   for (const p of pets) {
-    if (svgReady[p.type] && svgFrames[p.type].length > 0) {
-      const frames = svgFrames[p.type];
-      const oc = frames[p.frameIndex % frames.length];
+    // Use sit frames when sitting, otherwise normal frames
+    const frameType = p.sitting ? 'cat_sit' : p.type;
+    const frameIdx = p.sitting ? p.sitFrame : p.frameIndex;
+    if (svgReady[frameType] && svgFrames[frameType].length > 0) {
+      const frames = svgFrames[frameType];
+      const oc = frames[frameIdx % frames.length];
       ctx.save();
       if (!p.facingRight) {
-        ctx.translate(Math.round(p.x) + CAT_SVG_W, groundY - CAT_SVG_H);
+        ctx.translate(Math.round(p.x) + CAT_SIZE, groundY - CAT_SIZE);
         ctx.scale(-1, 1);
         ctx.drawImage(oc, 0, 0);
       } else {
-        ctx.drawImage(oc, Math.round(p.x), groundY - CAT_SVG_H);
+        ctx.drawImage(oc, Math.round(p.x), groundY - CAT_SIZE);
       }
       ctx.restore();
     }
@@ -304,10 +355,25 @@ function drawIcon(canvasId, type) {
   }
 }
 drawIcon('ic-cat', 'cat');
+drawIcon('ic-cat_sit', 'cat_sit');
 drawIcon('ic-greycat', 'greycat');
 
 // ── Interaction ───────────────────────────────────────────────
 document.getElementById('toolbar').addEventListener('click', (e) => {
+  // "Cat Sit" action: make all orange cats sit
+  const actionBtn = e.target.closest('button[data-action]');
+  if (actionBtn && actionBtn.dataset.action === 'sit') {
+    for (const p of pets) {
+      if (p.type === 'cat' && !p.sitting) {
+        p.sitting = true;
+        p.sitFrame = 0;
+        p.sitDone = false;
+        p.frameTimer = 0;
+      }
+    }
+    return;
+  }
+  // Spawn new pet
   const btn = e.target.closest('button[data-type]');
   if (!btn) return;
   pets.push(newPet(btn.dataset.type));
@@ -328,8 +394,8 @@ function hitTest(mx, my) {
   for (let i = pets.length - 1; i >= 0; i--) {
     const p = pets[i];
     const px = Math.round(p.x);
-    const py = groundY - CAT_SVG_H;
-    if (mx >= px && mx <= px + CAT_SVG_W && my >= py && my <= py + CAT_SVG_H) return i;
+    const py = groundY - CAT_SIZE;
+    if (mx >= px && mx <= px + CAT_SIZE && my >= py && my <= py + CAT_SIZE) return i;
   }
   return -1;
 }
@@ -349,7 +415,7 @@ canvas.addEventListener('pointermove', (e) => {
   if (!dragPet) return;
   didDrag = true;
   const { x } = canvasCoords(e);
-  dragPet.x = Math.max(0, Math.min(canvas.width - CAT_SVG_W, x - dragOffsetX));
+  dragPet.x = Math.max(0, Math.min(canvas.width - CAT_SIZE, x - dragOffsetX));
 });
 
 canvas.addEventListener('pointerup', () => {

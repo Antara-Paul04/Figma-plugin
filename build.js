@@ -21,6 +21,10 @@ html = html.replace('__CATSIT_SVG_DATA__', svgsToArray(['CATSIT1.svg', 'CATSIT2.
 html = html.replace('__CATNO_SVG_DATA__', svgsToArray(['CATNO1.svg', 'CATNO2.svg']));
 html = html.replace('__GREYCAT_SVG_DATA__', svgsToArray(['GREYCAT1.svg', 'GREYCAT2.svg', 'GREYCAT3.svg', 'GREYCAT4.svg']));
 html = html.replace('__GREYCATSIT_SVG_DATA__', svgsToArray(['GREYCATSIT1.svg', 'GREYCATSIT2.svg', 'GREYCATSIT3.svg', 'GREYCATSIT4.svg', 'GREYCATSIT5.svg']));
+html = html.replace('__GREYCATNO_SVG_DATA__', svgsToArray(['GREYCATNO1.svg', 'GREYCATNO2.svg']));
+html = html.replace('__PINKCAT_SVG_DATA__', svgsToArray(['PINKCAT1.svg', 'PINKCAT2.svg', 'PINKCAT3.svg', 'PINKCAT4.svg']));
+html = html.replace('__PINKCATSIT_SVG_DATA__', svgsToArray(['PINKCATSIT1.svg', 'PINKCATSIT2.svg', 'PINKCATSIT3.svg', 'PINKCATSIT4.svg', 'PINKCATSIT5.svg']));
+html = html.replace('__PINKCATNO_SVG_DATA__', svgsToArray(['PINKCATNO1.svg', 'PINKCATNO2.svg']));
 
 fs.writeFileSync(outFile, html, 'utf-8');
 console.log(`Built ui.html (${(html.length / 1024).toFixed(1)} KB) from ui-src.html + assets/`);

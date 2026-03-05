@@ -42,6 +42,32 @@
     image-rendering: pixelated;
     image-rendering: crisp-edges;
   }
+  #color-picker {
+    display: none;
+    position: absolute;
+    top: 32px;
+    left: 8px;
+    background: #3a3a3a;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    padding: 4px;
+    z-index: 20;
+    gap: 4px;
+  }
+  #color-picker.open { display: flex; }
+  #color-picker button {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.1s;
+    padding: 0;
+  }
+  #color-picker button:hover {
+    transform: scale(1.15);
+    border-color: rgba(255,255,255,0.6);
+  }
   #hint {
     text-align: center;
     color: rgba(255,255,255,0.3);
@@ -81,11 +107,14 @@
 </head>
 <body>
 <div id="toolbar">
-  <button data-type="cat"><canvas width="16" height="14" id="ic-cat"></canvas>Cat</button>
-  <button data-action="sit"><canvas width="16" height="14" id="ic-cat_sit"></canvas>Cat Sit</button>
-  <button data-action="catno"><canvas width="16" height="14" id="ic-cat_no"></canvas>Cat No</button>
-  <button data-type="greycat"><canvas width="16" height="14" id="ic-greycat"></canvas>Grey Cat</button>
-  <button data-action="greysit"><canvas width="16" height="14" id="ic-greycat_sit"></canvas>Grey Sit</button>
+  <button id="btn-add"><canvas width="16" height="14" id="ic-cat"></canvas>Add Cat</button>
+  <button data-action="sit"><canvas width="16" height="14" id="ic-cat_sit"></canvas>Sit</button>
+  <button data-action="no"><canvas width="16" height="14" id="ic-cat_no"></canvas>No</button>
+</div>
+<div id="color-picker">
+  <button data-type="cat" style="background:#e08040;" title="Orange"></button>
+  <button data-type="greycat" style="background:#808080;" title="Grey"></button>
+  <button data-type="pinkcat" style="background:#e8a0b0;" title="Pink"></button>
 </div>
 <div id="hint">click to flip · drag to move · double-click to remove</div>
 <canvas id="c"></canvas>
@@ -187,8 +216,50 @@ const PETS = {
       ],
     ],
   },
+  greycat_no: {
+    colors: [null,'#1a1a2e','#808080','#b0b0b0','#ffffff','#ff8090','#4a4a5c','#40c040'],
+    idle: [
+      [
+        [0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0],
+        [0,0,0,1,2,2,1,1,1,1,2,2,1,0,0,0],
+        [0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,2,2,1,5,5,1,2,2,2,1,0,0],
+        [0,0,0,1,2,2,2,3,3,2,2,2,1,0,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,0,1,1,2,2,2,2,2,2,1,1,0,0,0],
+        [0,0,1,6,1,1,1,1,1,1,1,1,6,1,0,0],
+        [0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0],
+      ],
+    ],
+  },
   greycat: {
     colors: [null,'#1a1a2e','#808080','#b0b0b0','#ffffff','#ff8090','#4a4a5c','#40c040'],
+    idle: [
+      [
+        [0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0],
+        [0,0,0,1,2,2,1,1,1,1,2,2,1,0,0,0],
+        [0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,2,2,1,5,5,1,2,2,2,1,0,0],
+        [0,0,0,1,2,2,2,3,3,2,2,2,1,0,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,0,1,1,2,2,2,2,2,2,1,1,0,0,0],
+        [0,0,1,6,1,1,1,1,1,1,1,1,6,1,0,0],
+        [0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0],
+      ],
+    ],
+  },
+  pinkcat: {
+    colors: [null,'#1a1a2e','#e8a0b0','#f0c8d0','#ffffff','#ff8090','#5c3a4a','#40c040'],
     idle: [
       [
         [0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0],
@@ -254,9 +325,14 @@ loadSvgFrames('cat_sit', __CATSIT_SVG_DATA__);
 loadSvgFrames('cat_no', __CATNO_SVG_DATA__);
 loadSvgFrames('greycat', __GREYCAT_SVG_DATA__);
 loadSvgFrames('greycat_sit', __GREYCATSIT_SVG_DATA__);
+loadSvgFrames('greycat_no', __GREYCATNO_SVG_DATA__);
+loadSvgFrames('pinkcat', __PINKCAT_SVG_DATA__);
+loadSvgFrames('pinkcat_sit', __PINKCATSIT_SVG_DATA__);
+loadSvgFrames('pinkcat_no', __PINKCATNO_SVG_DATA__);
 
-// Map each pet type to its sit animation frames
-const sitType = { cat: 'cat_sit', greycat: 'greycat_sit' };
+// Map each pet type to its animation variants
+const sitType = { cat: 'cat_sit', greycat: 'greycat_sit', pinkcat: 'pinkcat_sit' };
+const noType = { cat: 'cat_no', greycat: 'greycat_no', pinkcat: 'pinkcat_no' };
 
 // ── Pet instances ─────────────────────────────────────────────
 const pets = [];
@@ -310,24 +386,25 @@ function drawSprite(sprite, colors, x, y, flipped) {
 
 // ── Update & Draw ────────────────────────────────────────────
 function updatePet(p, dt) {
-  // Cat No animation: alternate CATNO1 ↔ CATNO2, 5 times, then back to idle
+  // Cat No animation: alternate NO1 ↔ NO2, then back to idle
   if (p.noPlaying) {
     p.frameTimer += dt;
     if (p.frameTimer >= 300) {
       p.frameTimer -= 300;
       p.noFrame = p.noFrame === 0 ? 1 : 0;
       p.noCount++;
-      if (p.noCount >= 4) { // 2 full alternations (4 frame switches)
+      if (p.noCount >= 5) { // no1→no2→no1→no2→no1→idle frame 0
         p.noPlaying = false;
         p.noFrame = 0;
         p.noCount = 0;
+        p.frameIndex = 0;
         p.frameTimer = 0;
       }
     }
     return;
   }
 
-  // Waking animation: reverse CATSIT4→3→2→1, then back to standing
+  // Waking animation: reverse SIT4→3→2→1, then back to standing
   if (p.waking) {
     p.frameTimer += dt;
     if (p.frameTimer >= 400) {
@@ -403,7 +480,7 @@ function draw() {
     // Pick the right frame set and index
     let frameType, frameIdx;
     if (p.noPlaying) {
-      frameType = 'cat_no';
+      frameType = noType[p.type] || 'cat_no';
       frameIdx = p.noFrame;
     } else if (p.sitting || p.waking) {
       frameType = sitType[p.type] || p.type;
@@ -455,50 +532,63 @@ function drawIcon(canvasId, type) {
 drawIcon('ic-cat', 'cat');
 drawIcon('ic-cat_sit', 'cat_sit');
 drawIcon('ic-cat_no', 'cat_no');
-drawIcon('ic-greycat', 'greycat');
-drawIcon('ic-greycat_sit', 'greycat_sit');
 
-// ── Interaction ───────────────────────────────────────────────
-document.getElementById('toolbar').addEventListener('click', (e) => {
-  // Sit/Wake actions: toggle cats between sitting and standing
-  const actionBtn = e.target.closest('button[data-action]');
-  if (actionBtn) {
-    const action = actionBtn.dataset.action;
-    const targetType = action === 'sit' ? 'cat' : action === 'greysit' ? 'greycat' : null;
-    if (targetType) {
-      for (const p of pets) {
-        if (p.type === targetType) {
-          if (!p.sitting && !p.waking) {
-            p.sitting = true;
-            p.sitFrame = 0;
-            p.sitDone = false;
-            p.frameTimer = 0;
-          } else if (p.sitting && !p.waking) {
-            p.waking = true;
-            p.sitFrame = Math.min(p.sitFrame, 3);
-            p.frameTimer = 0;
-          }
-        }
-      }
-      return;
-    }
-    // Cat No action: make orange cats shake head
-    if (action === 'catno') {
-      for (const p of pets) {
-        if (p.type === 'cat' && !p.noPlaying) {
-          p.noPlaying = true;
-          p.noFrame = 0;
-          p.noCount = 0;
-          p.frameTimer = 0;
-        }
-      }
-      return;
-    }
-  }
-  // Spawn new pet
+// ── Color picker for Add Cat ──────────────────────────────────
+const picker = document.getElementById('color-picker');
+const addBtn = document.getElementById('btn-add');
+
+addBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  picker.classList.toggle('open');
+});
+
+picker.addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-type]');
   if (!btn) return;
   pets.push(newPet(btn.dataset.type));
+  picker.classList.remove('open');
+});
+
+// Close picker when clicking elsewhere
+document.addEventListener('click', (e) => {
+  if (!picker.contains(e.target) && e.target !== addBtn && !addBtn.contains(e.target)) {
+    picker.classList.remove('open');
+  }
+});
+
+// ── Interaction ───────────────────────────────────────────────
+document.getElementById('toolbar').addEventListener('click', (e) => {
+  const actionBtn = e.target.closest('button[data-action]');
+  if (!actionBtn) return;
+  const action = actionBtn.dataset.action;
+
+  if (action === 'sit') {
+    for (const p of pets) {
+      if (!p.sitting && !p.waking) {
+        p.sitting = true;
+        p.sitFrame = 0;
+        p.sitDone = false;
+        p.frameTimer = 0;
+      } else if (p.sitting && !p.waking) {
+        p.waking = true;
+        p.sitFrame = Math.min(p.sitFrame, 3);
+        p.frameTimer = 0;
+      }
+    }
+    return;
+  }
+
+  if (action === 'no') {
+    for (const p of pets) {
+      if (!p.noPlaying) {
+        p.noPlaying = true;
+        p.noFrame = 0;
+        p.noCount = 0;
+        p.frameTimer = 0;
+      }
+    }
+    return;
+  }
 });
 
 // Drag pets to reposition, double-click to remove

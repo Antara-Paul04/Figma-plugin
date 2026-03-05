@@ -83,7 +83,9 @@
 <div id="toolbar">
   <button data-type="cat"><canvas width="16" height="14" id="ic-cat"></canvas>Cat</button>
   <button data-action="sit"><canvas width="16" height="14" id="ic-cat_sit"></canvas>Cat Sit</button>
+  <button data-action="catno"><canvas width="16" height="14" id="ic-cat_no"></canvas>Cat No</button>
   <button data-type="greycat"><canvas width="16" height="14" id="ic-greycat"></canvas>Grey Cat</button>
+  <button data-action="greysit"><canvas width="16" height="14" id="ic-greycat_sit"></canvas>Grey Sit</button>
 </div>
 <div id="hint">click to flip · drag to move · double-click to remove</div>
 <canvas id="c"></canvas>
@@ -122,8 +124,50 @@ const PETS = {
       ],
     ],
   },
+  cat_no: {
+    colors: [null,'#1a1a2e','#e08040','#f0c890','#ffffff','#ff8090','#3a3a5c','#40c040'],
+    idle: [
+      [
+        [0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0],
+        [0,0,0,1,2,2,1,1,1,1,2,2,1,0,0,0],
+        [0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,2,2,1,5,5,1,2,2,2,1,0,0],
+        [0,0,0,1,2,2,2,3,3,2,2,2,1,0,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,0,1,1,2,2,2,2,2,2,1,1,0,0,0],
+        [0,0,1,6,1,1,1,1,1,1,1,1,6,1,0,0],
+        [0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0],
+      ],
+    ],
+  },
   cat_sit: {
     colors: [null,'#1a1a2e','#e08040','#f0c890','#ffffff','#ff8090','#3a3a5c','#40c040'],
+    idle: [
+      [
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0],
+        [0,0,0,1,2,2,1,1,1,1,2,2,1,0,0,0],
+        [0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0],
+        [0,0,1,2,7,1,2,2,2,2,7,1,2,1,0,0],
+        [0,0,1,2,2,2,1,5,5,1,2,2,2,1,0,0],
+        [0,0,0,1,2,2,2,3,3,2,2,2,1,0,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,1,2,3,3,3,3,3,3,3,3,2,1,0,0],
+        [0,0,1,2,2,3,3,3,3,3,3,2,2,1,0,0],
+        [0,0,0,1,1,2,2,2,2,2,2,1,1,0,0,0],
+        [0,0,0,1,2,2,2,1,1,2,2,2,1,0,0,0],
+        [0,0,1,6,1,1,1,0,0,1,1,1,6,1,0,0],
+        [0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0],
+      ],
+    ],
+  },
+  greycat_sit: {
+    colors: [null,'#1a1a2e','#808080','#b0b0b0','#ffffff','#ff8090','#4a4a5c','#40c040'],
     idle: [
       [
         [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -171,7 +215,7 @@ const PX = 3;
 const SP_W = 16, SP_H = 14;
 const PET_W = SP_W * PX;
 const PET_H = SP_H * PX;
-const CAT_SIZE = 90;
+const CAT_SIZE = 100;
 
 // ── SVG frames (imported from assets/ via build.js) ──
 const svgFrames = {};   // { cat: [canvas,...], cat_sit: [canvas,...], ... }
@@ -207,7 +251,12 @@ function loadSvgFrames(type, dataURIs) {
 // Replaced by build.js with base64 URIs from assets/
 loadSvgFrames('cat', __CAT_SVG_DATA__);
 loadSvgFrames('cat_sit', __CATSIT_SVG_DATA__);
+loadSvgFrames('cat_no', __CATNO_SVG_DATA__);
 loadSvgFrames('greycat', __GREYCAT_SVG_DATA__);
+loadSvgFrames('greycat_sit', __GREYCATSIT_SVG_DATA__);
+
+// Map each pet type to its sit animation frames
+const sitType = { cat: 'cat_sit', greycat: 'greycat_sit' };
 
 // ── Pet instances ─────────────────────────────────────────────
 const pets = [];
@@ -222,8 +271,12 @@ function newPet(type) {
     frameIndex: 0,
     frameTimer: 0,
     sitting: false,
+    waking: false,
     sitFrame: 0,
     sitDone: false,
+    noPlaying: false,
+    noFrame: 0,
+    noCount: 0,
   };
 }
 
@@ -257,7 +310,43 @@ function drawSprite(sprite, colors, x, y, flipped) {
 
 // ── Update & Draw ────────────────────────────────────────────
 function updatePet(p, dt) {
-  // Phase 2 of sit: slow loop between CATSIT4 ↔ CATSIT5
+  // Cat No animation: alternate CATNO1 ↔ CATNO2, 5 times, then back to idle
+  if (p.noPlaying) {
+    p.frameTimer += dt;
+    if (p.frameTimer >= 300) {
+      p.frameTimer -= 300;
+      p.noFrame = p.noFrame === 0 ? 1 : 0;
+      p.noCount++;
+      if (p.noCount >= 4) { // 2 full alternations (4 frame switches)
+        p.noPlaying = false;
+        p.noFrame = 0;
+        p.noCount = 0;
+        p.frameTimer = 0;
+      }
+    }
+    return;
+  }
+
+  // Waking animation: reverse CATSIT4→3→2→1, then back to standing
+  if (p.waking) {
+    p.frameTimer += dt;
+    if (p.frameTimer >= 400) {
+      p.frameTimer -= 400;
+      if (p.sitFrame > 0) {
+        p.sitFrame--;
+      } else {
+        // Done waking — back to standing
+        p.sitting = false;
+        p.waking = false;
+        p.sitDone = false;
+        p.sitFrame = 0;
+        p.frameTimer = 0;
+      }
+    }
+    return;
+  }
+
+  // Phase 2 of sit: slow loop between frame 4 ↔ 5
   if (p.sitting && p.sitDone) {
     p.sitLoopTimer = (p.sitLoopTimer || 0) + dt;
     if (p.sitLoopTimer >= 800) {
@@ -271,11 +360,11 @@ function updatePet(p, dt) {
   if (p.frameTimer >= 400) {
     p.frameTimer -= 400;
 
-    // Sitting animation: play CATSIT1→2→3→4, then loop between 4 and 5
+    // Sitting animation: play frames 1→2→3→4, then loop between 4 and 5
     if (p.sitting) {
-      if (svgReady['cat_sit']) {
+      const st = sitType[p.type];
+      if (st && svgReady[st]) {
         if (!p.sitDone) {
-          // Phase 1: sequential 0→1→2→3 (CATSIT1→4) at normal speed
           if (p.sitFrame < 3) {
             p.sitFrame++;
           } else {
@@ -311,9 +400,18 @@ function draw() {
   ctx.stroke();
 
   for (const p of pets) {
-    // Use sit frames when sitting, otherwise normal frames
-    const frameType = p.sitting ? 'cat_sit' : p.type;
-    const frameIdx = p.sitting ? p.sitFrame : p.frameIndex;
+    // Pick the right frame set and index
+    let frameType, frameIdx;
+    if (p.noPlaying) {
+      frameType = 'cat_no';
+      frameIdx = p.noFrame;
+    } else if (p.sitting || p.waking) {
+      frameType = sitType[p.type] || p.type;
+      frameIdx = p.sitFrame;
+    } else {
+      frameType = p.type;
+      frameIdx = p.frameIndex;
+    }
     if (svgReady[frameType] && svgFrames[frameType].length > 0) {
       const frames = svgFrames[frameType];
       const oc = frames[frameIdx % frames.length];
@@ -356,22 +454,46 @@ function drawIcon(canvasId, type) {
 }
 drawIcon('ic-cat', 'cat');
 drawIcon('ic-cat_sit', 'cat_sit');
+drawIcon('ic-cat_no', 'cat_no');
 drawIcon('ic-greycat', 'greycat');
+drawIcon('ic-greycat_sit', 'greycat_sit');
 
 // ── Interaction ───────────────────────────────────────────────
 document.getElementById('toolbar').addEventListener('click', (e) => {
-  // "Cat Sit" action: make all orange cats sit
+  // Sit/Wake actions: toggle cats between sitting and standing
   const actionBtn = e.target.closest('button[data-action]');
-  if (actionBtn && actionBtn.dataset.action === 'sit') {
-    for (const p of pets) {
-      if (p.type === 'cat' && !p.sitting) {
-        p.sitting = true;
-        p.sitFrame = 0;
-        p.sitDone = false;
-        p.frameTimer = 0;
+  if (actionBtn) {
+    const action = actionBtn.dataset.action;
+    const targetType = action === 'sit' ? 'cat' : action === 'greysit' ? 'greycat' : null;
+    if (targetType) {
+      for (const p of pets) {
+        if (p.type === targetType) {
+          if (!p.sitting && !p.waking) {
+            p.sitting = true;
+            p.sitFrame = 0;
+            p.sitDone = false;
+            p.frameTimer = 0;
+          } else if (p.sitting && !p.waking) {
+            p.waking = true;
+            p.sitFrame = Math.min(p.sitFrame, 3);
+            p.frameTimer = 0;
+          }
+        }
       }
+      return;
     }
-    return;
+    // Cat No action: make orange cats shake head
+    if (action === 'catno') {
+      for (const p of pets) {
+        if (p.type === 'cat' && !p.noPlaying) {
+          p.noPlaying = true;
+          p.noFrame = 0;
+          p.noCount = 0;
+          p.frameTimer = 0;
+        }
+      }
+      return;
+    }
   }
   // Spawn new pet
   const btn = e.target.closest('button[data-type]');

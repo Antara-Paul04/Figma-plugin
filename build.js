@@ -15,9 +15,12 @@ function svgsToArray(fileNames) {
 }
 
 let html = fs.readFileSync(srcFile, 'utf-8');
+
 html = html.replace('__CAT_SVG_DATA__', svgsToArray(['CAT1.svg', 'CAT2.svg', 'CAT3.svg', 'CAT4.svg']));
 html = html.replace('__CATSIT_SVG_DATA__', svgsToArray(['CATSIT1.svg', 'CATSIT2.svg', 'CATSIT3.svg', 'CATSIT4.svg', 'CATSIT5.svg']));
+html = html.replace('__CATNO_SVG_DATA__', svgsToArray(['CATNO1.svg', 'CATNO2.svg']));
 html = html.replace('__GREYCAT_SVG_DATA__', svgsToArray(['GREYCAT1.svg', 'GREYCAT2.svg', 'GREYCAT3.svg', 'GREYCAT4.svg']));
+html = html.replace('__GREYCATSIT_SVG_DATA__', svgsToArray(['GREYCATSIT1.svg', 'GREYCATSIT2.svg', 'GREYCATSIT3.svg', 'GREYCATSIT4.svg', 'GREYCATSIT5.svg']));
 
 fs.writeFileSync(outFile, html, 'utf-8');
 console.log(`Built ui.html (${(html.length / 1024).toFixed(1)} KB) from ui-src.html + assets/`);
